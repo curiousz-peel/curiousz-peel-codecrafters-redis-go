@@ -4,24 +4,25 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
 type respHandler struct {
 	data     []byte
-	commands map[string]string
+	commands map[string][]string
+	cache    map[string]string
 	conn     net.Conn
 }
 
 func InitRESP(conn net.Conn) *respHandler {
-	return &respHandler{conn: conn, commands: make(map[string]string)}
+	return &respHandler{conn: conn, commands: make(map[string][]string)}
 }
 
 func (r *respHandler) Read() error {
 	buf := make([]byte, 128)
 	_, err := r.conn.Read(buf)
 	if err != nil {
-		fmt.Printf("couldn't read from %v\n", r.conn.LocalAddr().String())
 		return err
 	}
 	r.data = buf
@@ -29,34 +30,40 @@ func (r *respHandler) Read() error {
 }
 
 func (r *respHandler) Parse() {
-	var isArg bool
-	var currentCommand string
-	splitRe := regexp.MustCompile(`\$(\d+)\r\n(\w+)`)
-	trimRe := regexp.MustCompile(`\$(\d+)\r\n`)
+	splitRe := regexp.MustCompile(`\r\n`)
 
-	tokens := splitRe.FindAll(r.data, -1)
+	tokens := splitRe.Split(string(r.data), -1)
 	if tokens != nil {
-		for _, token := range tokens {
-			token = trimRe.ReplaceAll(token, []byte(""))
-			if !isArg {
-				currentCommand = string(token)
-				r.commands[currentCommand] = ""
-			} else {
-				r.commands[currentCommand] = string(token)
-			}
-			isArg = true
+		wordCount, err := strconv.Atoi(tokens[0][1:])
+		if err != nil {
+			fmt.Println("couldn't parse length of words")
+			return
+		}
+		r.commands[tokens[2]] = []string{}
+		for i := 2; i <= wordCount; i++ {
+			r.commands[tokens[2]] = append(r.commands[tokens[2]], tokens[i*2])
 		}
 		return
 	}
 	fmt.Printf("no tokens after regex expression: %s\n", splitRe.String())
 }
 
-func (r respHandler) handleCommand(command string, argument string) (response []byte, err error) {
+func (r respHandler) handleCommand(command string, arguments []string) (response []byte, err error) {
 	switch strings.ToLower(command) {
 	case "ping":
 		response = []byte("+PONG\r\n")
 	case "echo":
-		response = []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(argument), argument))
+		response = []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(arguments[0]), arguments[0]))
+	case "set":
+		r.cache[arguments[0]] = arguments[1]
+		response = []byte("+OK\r\n")
+	case "get":
+		val, ok := r.cache[arguments[0]]
+		if !ok {
+			response = []byte("$-1\r\n")
+		} else {
+			response = []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(val), val))
+		}
 	default:
 		err = fmt.Errorf("unknown command %s", command)
 	}
