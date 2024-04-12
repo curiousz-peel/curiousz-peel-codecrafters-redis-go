@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 )
@@ -30,6 +32,9 @@ func handleConnection(conn net.Conn) {
 	for {
 		err := respHandler.Read()
 		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return
+			}
 			fmt.Println(err)
 			os.Exit(2)
 

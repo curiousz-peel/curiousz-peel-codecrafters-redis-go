@@ -1,9 +1,7 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"net"
 	"regexp"
 	"strings"
@@ -23,9 +21,6 @@ func (r *respHandler) Read() error {
 	buf := make([]byte, 128)
 	_, err := r.conn.Read(buf)
 	if err != nil {
-		if errors.Is(err, io.EOF) {
-			return nil
-		}
 		fmt.Printf("couldn't read from %v\n", r.conn.LocalAddr().String())
 		return err
 	}
