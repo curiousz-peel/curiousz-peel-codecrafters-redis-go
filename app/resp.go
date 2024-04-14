@@ -79,6 +79,7 @@ func (r respHandler) Execute() error {
 			if err != nil {
 				return err
 			}
+			defer delete(r.commands, comm)
 			_, err = r.conn.Write(resp)
 			if err != nil {
 				return fmt.Errorf("couldn't write to %s: %v", r.conn.LocalAddr().String(), err.Error())
