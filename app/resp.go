@@ -16,7 +16,7 @@ type respHandler struct {
 }
 
 func InitRESP(conn net.Conn) *respHandler {
-	return &respHandler{conn: conn, commands: make(map[string][]string)}
+	return &respHandler{conn: conn, commands: make(map[string][]string), cache: make(map[string]string)}
 }
 
 func (r *respHandler) Read() error {
