@@ -73,6 +73,7 @@ func (r respHandler) handleCommand(command string, arguments []string) (response
 
 func (r respHandler) Execute() error {
 	if r.commands != nil {
+		fmt.Println("COMMANDS ARE ", r.commands)
 		for comm, arg := range r.commands {
 			resp, err := r.handleCommand(comm, arg)
 			if err != nil {
