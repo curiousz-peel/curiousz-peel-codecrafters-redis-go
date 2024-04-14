@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+// type cacheVal struct {
+// 	value  string
+// 	expiry time.Time
+// }
+
 type respHandler struct {
 	data     []byte
 	commands map[string][]string
@@ -16,7 +21,7 @@ type respHandler struct {
 }
 
 func InitRESP(conn net.Conn) *respHandler {
-	return &respHandler{conn: conn, commands: make(map[string][]string), cache: make(map[string]string)}
+	return &respHandler{conn: conn, commands: make(map[string][]string), cache: make(map[string]cacheVal)}
 }
 
 func (r *respHandler) Read() error {
@@ -49,13 +54,13 @@ func (r *respHandler) Parse() {
 }
 
 func (r respHandler) handleCommand(command string, arguments []string) (response []byte, err error) {
-	fmt.Println("COMMAND IS ", command)
 	switch strings.ToLower(command) {
 	case "ping":
 		response = []byte("+PONG\r\n")
 	case "echo":
 		response = []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(arguments[0]), arguments[0]))
 	case "set":
+		fmt.Println(arguments)
 		r.cache[arguments[0]] = arguments[1]
 		response = []byte("+OK\r\n")
 	case "get":
@@ -73,7 +78,6 @@ func (r respHandler) handleCommand(command string, arguments []string) (response
 
 func (r respHandler) Execute() error {
 	if r.commands != nil {
-		fmt.Println("COMMANDS ARE ", r.commands)
 		for comm, arg := range r.commands {
 			resp, err := r.handleCommand(comm, arg)
 			if err != nil {
