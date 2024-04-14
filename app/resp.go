@@ -49,6 +49,7 @@ func (r *respHandler) Parse() {
 }
 
 func (r respHandler) handleCommand(command string, arguments []string) (response []byte, err error) {
+	fmt.Println("COMMAND IS ", command)
 	switch strings.ToLower(command) {
 	case "ping":
 		response = []byte("+PONG\r\n")
