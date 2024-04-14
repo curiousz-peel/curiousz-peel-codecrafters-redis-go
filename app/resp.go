@@ -6,22 +6,23 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
-// type cacheVal struct {
-// 	value  string
-// 	expiry time.Time
-// }
+type cacheVal struct {
+	value  string
+	expiry time.Time
+}
 
 type respHandler struct {
 	data     []byte
 	commands map[string][]string
-	cache    map[string]string
+	cache    map[string]cacheVal
 	conn     net.Conn
 }
 
 func InitRESP(conn net.Conn) *respHandler {
-	return &respHandler{conn: conn, commands: make(map[string][]string), cache: make(map[string]string)}
+	return &respHandler{conn: conn, commands: make(map[string][]string), cache: make(map[string]cacheVal)}
 }
 
 func (r *respHandler) Read() error {
@@ -60,15 +61,24 @@ func (r respHandler) handleCommand(command string, arguments []string) (response
 	case "echo":
 		response = []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(arguments[0]), arguments[0]))
 	case "set":
-		fmt.Println(arguments)
-		r.cache[arguments[0]] = arguments[1]
+		if len(arguments) > 2 {
+			milis, convErr := strconv.Atoi(arguments[3])
+			if convErr != nil {
+				err = fmt.Errorf("can't convert miliseconds to int with the err %s", convErr.Error())
+				return
+			}
+			r.cache[arguments[0]] = cacheVal{value: arguments[1], expiry: time.Now().Add(time.Millisecond * time.Duration(milis))}
+		} else {
+			r.cache[arguments[0]] = cacheVal{value: arguments[1]}
+			fmt.Println(r.cache[arguments[0]])
+		}
 		response = []byte("+OK\r\n")
 	case "get":
 		val, ok := r.cache[arguments[0]]
 		if !ok {
 			response = []byte("$-1\r\n")
 		} else {
-			response = []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(val), val))
+			response = []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(val.value), val.value))
 		}
 	default:
 		err = fmt.Errorf("unknown command %s", command)
