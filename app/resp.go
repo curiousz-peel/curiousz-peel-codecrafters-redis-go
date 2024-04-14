@@ -70,13 +70,19 @@ func (r respHandler) handleCommand(command string, arguments []string) (response
 			r.cache[arguments[0]] = cacheVal{value: arguments[1], expiry: time.Now().Add(time.Millisecond * time.Duration(milis))}
 		} else {
 			r.cache[arguments[0]] = cacheVal{value: arguments[1]}
-			fmt.Println(r.cache[arguments[0]])
 		}
 		response = []byte("+OK\r\n")
 	case "get":
 		val, ok := r.cache[arguments[0]]
 		if !ok {
 			response = []byte("$-1\r\n")
+		} else if !val.expiry.IsZero() {
+			if time.Now().After(val.expiry) {
+				response = []byte("$-1\r\n")
+				delete(r.cache, arguments[0])
+			} else {
+				response = []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(val.value), val.value))
+			}
 		} else {
 			response = []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(val.value), val.value))
 		}
